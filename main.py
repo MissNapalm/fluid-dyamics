@@ -11,19 +11,31 @@ pygame.init()
 SCREEN_WIDTH = 750
 SCREEN_HEIGHT = 650
 os.environ['SDL_VIDEO_WINDOW_POS'] = '%d, %d' % (150, 50)
+
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Fluid Simulation')
 
 # FPS settings
-FPS = 60
+FPS = 80
 clock = pygame.time.Clock()
 
 # Define colors
 black = (0, 0, 0)
-blue = (255, 255, 255)  # Initial blue color for particles
-grey = (160, 32, 240)   # Gray color for walls
-button_color = grey     # Set button color to match walls
+pale_yellow = (255, 255, 153)  # Pale yellow for particles
+grey = (160, 32, 240)          # Gray color for walls
+button_color = grey            # Set button color to match walls
 white = (255, 255, 255)
+
+# Bright, fun colors for particles
+fun_colors = [
+    (255, 69, 0),   # Red-Orange
+    (255, 105, 180), # Hot Pink
+    (255, 255, 0),  # Yellow
+    (0, 255, 255),  # Cyan
+    (124, 252, 0),  # Lime Green
+    (255, 165, 0),  # Orange
+    (0, 128, 255),  # Dodger Blue
+]
 
 def swap_kv(dc):
     outval = {}
@@ -39,7 +51,7 @@ class FluxState:
     particle_colors = {
         EMPTY_PARTICLE: black,
         STATIC_PARTICLE: grey,  # Gray color for static walls
-        HEAVY_PARTICLE: blue,   # Initial color for particles
+        HEAVY_PARTICLE: pale_yellow,  # Initial pale yellow color for particles
     }
 
     particle_colors_by_color = swap_kv(particle_colors)
@@ -142,34 +154,54 @@ def update_world(state):
 
     state.particle_map = new_particles
 
-def check_events(button_rect):
+def check_events(button_rect, is_fullscreen):
     for e in pygame.event.get():
         if e.type == pygame.QUIT:
             return False
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_y:
                 return 'y_pressed'
+            elif e.key == pygame.K_f:
+                return 'f_pressed'
         if e.type == pygame.MOUSEBUTTONDOWN:
             if button_rect.collidepoint(e.pos):
                 return 'button_pressed'
     return True
 
-def get_random_color():
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+def toggle_fullscreen(is_fullscreen):
+    if is_fullscreen:
+        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    else:
+        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
+    return not is_fullscreen
 
-def render(state, flux_display, fps, st_font, button_rect, is_particle_mode):
+def get_random_fun_color():
+    return random.choice(fun_colors)
+
+def render(state, flux_display, fps, st_font, button_rect, current_mode):
     flux_display.fill(black)
 
     for loc, (ptype, color) in state.particle_map.items():
-        # Draw particles as 5x5 squares
-        rect = pygame.Rect(loc[0] * 5, loc[1] * 5, 5, 5)
-        pygame.draw.rect(flux_display, color, rect)
+        if ptype == FluxState.HEAVY_PARTICLE:
+            # Draw particles as 5x5 squares
+            rect = pygame.Rect(loc[0] * 5, loc[1] * 5, 5, 5)
+            pygame.draw.rect(flux_display, color, rect)
+        elif ptype == FluxState.STATIC_PARTICLE:
+            # Draw walls as 7x7 squares (30% larger than particles)
+            rect = pygame.Rect(loc[0] * 5, loc[1] * 5, 7, 7)
+            pygame.draw.rect(flux_display, color, rect)
 
     # Draw button
     pygame.draw.circle(flux_display, button_color, button_rect.center, button_rect.width // 2)
-    button_text = st_font.render('P' if is_particle_mode else 'W', True, white)
+    mode_text = ["Particles", "Walls", "Eraser"][current_mode]
+    button_text = st_font.render(mode_text, True, white)
     button_text_rect = button_text.get_rect(center=button_rect.center)
     flux_display.blit(button_text, button_text_rect)
+
+    # Render instruction text
+    instruction_text = st_font.render("Press Y to change particle color", True, white)
+    instruction_rect = instruction_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 20))
+    flux_display.blit(instruction_text, instruction_rect)
 
     fps_str = "%.1f" % fps
     fps_surface = st_font.render(fps_str, True, grey)
@@ -182,7 +214,7 @@ def render(state, flux_display, fps, st_font, button_rect, is_particle_mode):
 def main_window():
     # Initialize FluxState with no default particles
     state = FluxState(SCREEN_WIDTH // 5, SCREEN_HEIGHT // 5)  # Adjusted for 5x5 pixel grid
-    current_particle_color = blue  # Default initial color for particles
+    current_particle_color = pale_yellow  # Default initial color for particles
 
     # Initialize font
     pygame.font.init()
@@ -192,18 +224,26 @@ def main_window():
     button_radius = 90  # Diameter of 90px
     button_rect = pygame.Rect(SCREEN_WIDTH - button_radius - 116, 10, button_radius * 2, button_radius * 2)
 
-    is_particle_mode = True  # Start in particle mode
+    mode_names = ["Particles", "Walls", "Eraser"]
+    current_mode = 0  # Start in particle mode
+
+    is_fullscreen = False  # Track fullscreen state
 
     running = True
     while running:
         # Handle events
-        running = check_events(button_rect)
-        if running == 'y_pressed':
-            # Change the color of new particles
-            current_particle_color = get_random_color()
-        elif running == 'button_pressed':
+        event_result = check_events(button_rect, is_fullscreen)
+        if event_result == 'y_pressed':
+            # Change the color of new particles to a fun color
+            current_particle_color = get_random_fun_color()
+        elif event_result == 'button_pressed':
             # Toggle mode
-            is_particle_mode = not is_particle_mode
+            current_mode = (current_mode + 1) % 3
+        elif event_result == 'f_pressed':
+            # Toggle fullscreen
+            is_fullscreen = toggle_fullscreen(is_fullscreen)
+        elif not event_result:
+            running = False
 
         screen.fill((0, 0, 0))  # Clear screen
 
@@ -213,13 +253,18 @@ def main_window():
         grid_x, grid_y = mx // 5, my // 5
 
         if mouse_pressed[0]:  # Left mouse button
-            if is_particle_mode:
+            if current_mode == 0:  # Particles mode
                 # Spawn 10 particles at the mouse location
                 for _ in range(10):
                     state.add_particle(FluxState.HEAVY_PARTICLE, (random.randint(grid_x-2, grid_x+2), grid_y), current_particle_color)
-            else:
-                # Draw 2x2 square walls
-                state.add_particle_rect(FluxState.STATIC_PARTICLE, (grid_x, grid_y), 2, 2)
+            elif current_mode == 1:  # Walls mode
+                # Draw 2x2 square walls (with 30% larger dimensions)
+                for dx in range(2):
+                    for dy in range(2):
+                        state.add_particle(FluxState.STATIC_PARTICLE, (grid_x + dx, grid_y + dy), grey)
+            elif current_mode == 2:  # Eraser mode
+                # Erase particles in a small area
+                state.destroy_particles_circle((grid_x, grid_y), 6)
 
         if mouse_pressed[2]:  # Right mouse button
             # Draw 2x2 square walls
@@ -229,7 +274,7 @@ def main_window():
             state.destroy_particles_circle((grid_x, grid_y), 5)
 
         update_world(state)
-        render(state, screen, clock.get_fps(), st_font, button_rect, is_particle_mode)
+        render(state, screen, clock.get_fps(), st_font, button_rect, current_mode)
         pygame.display.update()
         clock.tick(FPS)
 
