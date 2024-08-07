@@ -16,7 +16,7 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('Fluid Simulation')
 
 # FPS settings
-FPS = 80
+FPS = 120
 clock = pygame.time.Clock()
 
 # Define colors
