@@ -1,6 +1,6 @@
 Interactive Physics Playground (pygame)
 
-Chromaflow is a vibrant, hands-on physics playground built with Python and pygame.
+A vibrant, hands-on physics playground built with Python and pygame.
 It features an authentic, real-time fluid dynamics engine—create walls and boundaries, pour colorful liquid, and watch emergent patterns swirl, collide, and cascade across the screen. It’s part sandbox, part art toy, and endlessly mesmerizing.
 
 
